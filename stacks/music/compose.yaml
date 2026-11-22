@@ -1,0 +1,173 @@
+name: music-homelab
+x-restricted: &restricted
+  user: "${MUSIC_UID:-1000}:${MUSIC_GID:-1000}"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  restart: unless-stopped
+  pids_limit: 192
+  cpus: 1.0
+  mem_limit: 768m
+  tmpfs: ["/tmp:rw,noexec,nosuid,size=128m,mode=1777"]
+  logging:
+    driver: json-file
+    options: {max-size: 5m, max-file: "2"}
+x-koito: &koito
+  <<: *restricted
+  image: gabehf/koito:v0.3.2@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857
+  healthcheck:
+    test: [CMD, /bin/bash, -c, 'exec 3<>/dev/tcp/127.0.0.1/4110 && printf "GET /apis/web/v1/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && read -t 5 -r line <&3 && [[ "$$line" == *" 200 "* ]]']
+    interval: 30s
+    timeout: 8s
+    retries: 5
+    start_period: 30s
+x-koito-env: &koito-env
+  KOITO_SQLITE_ENABLED: "true"
+  KOITO_LOGIN_GATE: "true"
+  KOITO_DISABLE_MUSICBRAINZ: "true"
+  KOITO_DISABLE_DEEZER: "true"
+  KOITO_DISABLE_COVER_ART_ARCHIVE: "true"
+  KOITO_ENABLE_LBZ_RELAY: "false"
+  KOITO_CONFIG_DIR: /etc/koito
+  KOITO_DEFAULT_PASSWORD_FILE: /run/secrets/koito_password
+  KOITO_LOG_LEVEL: warn
+services:
+  music:
+    <<: *restricted
+    image: ${MUSIC_IMAGE:-armonia:0.7.0}
+    build:
+      context: ${ARMONIA_BUILD_CONTEXT:-../../../armonia/middleware}
+      args:
+        ARMONIA_COMMIT: ${ARMONIA_COMMIT:-}
+        MUSIC_APP_NAME: ${MUSIC_APP_NAME:-Armonía}
+    ports: ["${MUSIC_BIND:-127.0.0.1}:${MUSIC_PORT:-18400}:8000"]
+    networks: [entry, library, recommendations, history_alice, history_bob, history_carol]
+    environment:
+      NAVIDROME_URL: http://navidrome:4533
+      MUSIC_DIR: /music
+      ARMONIA_DATA_DIR: /app/data
+      MUSIC_CACHE_DIR: /app/cache
+      MUSIC_CACHE_MAX_BYTES: "268435456"
+      MUSIC_CACHE_TTL_SECONDS: "86400"
+      MUSIC_PUBLIC_ORIGIN: ${MUSIC_PUBLIC_ORIGIN:-}
+      MUSIC_COOKIE_SECURE: ${MUSIC_COOKIE_SECURE:-true}
+      MUSIC_SECRET_KEY_FILE: /run/secrets/credential_key
+      MUSIC_INTEGRATIONS_FILE: /run/secrets/integrations.json
+      MUSIC_SOURCES_FILE: /app/config/sources.json
+      MUSIC_YOUTUBE_CAPABILITIES: ${MUSIC_YOUTUBE_CAPABILITIES:-}
+      MUSIC_DELETE_USERS: ""
+    volumes:
+      - ./runtime/music-app:/app/data
+      - ./runtime/cache:/app/cache
+      - ./runtime/music:/music
+      - ./config:/app/config:ro
+    secrets:
+      - credential_key
+      - source: integrations
+        target: integrations.json
+      - koito_alice_token
+      - koito_bob_token
+      - koito_carol_token
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+  navidrome:
+    <<: *restricted
+    image: deluan/navidrome:0.64.2@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52
+    networks: [library]
+    environment:
+      ND_MUSICFOLDER: /music/shared
+      ND_DATAFOLDER: /data
+      ND_LOGLEVEL: warn
+      ND_LASTFM_ENABLED: "false"
+      ND_LISTENBRAINZ_ENABLED: "false"
+      ND_ENABLEEXTERNALSERVICES: "false"
+      ND_ENABLESHARING: "false"
+      ND_SEARCH_BACKEND: ${MUSIC_SEARCH_BACKEND:-legacy}
+      ND_SCANSCHEDULE: "@every 1h"
+    volumes:
+      - ./runtime/navidrome:/data
+      - ./runtime/music:/music:ro
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:4533/ping]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+  koito-alice:
+    <<: *koito
+    networks: [history_alice]
+    environment:
+      <<: *koito-env
+      KOITO_DEFAULT_USERNAME: alice
+      KOITO_ALLOWED_HOSTS: localhost,koito-alice
+    volumes: [./runtime/koito-alice:/etc/koito]
+    secrets:
+      - source: koito_alice_password
+        target: koito_password
+  koito-bob:
+    <<: *koito
+    networks: [history_bob]
+    environment:
+      <<: *koito-env
+      KOITO_DEFAULT_USERNAME: bob
+      KOITO_ALLOWED_HOSTS: localhost,koito-bob
+    volumes: [./runtime/koito-bob:/etc/koito]
+    secrets:
+      - source: koito_bob_password
+        target: koito_password
+  koito-carol:
+    <<: *koito
+    profiles: [third-user]
+    networks: [history_carol]
+    environment:
+      <<: *koito-env
+      KOITO_DEFAULT_USERNAME: carol
+      KOITO_ALLOWED_HOSTS: localhost,koito-carol
+    volumes: [./runtime/koito-carol:/etc/koito]
+    secrets:
+      - source: koito_carol_password
+        target: koito_password
+  aurral:
+    <<: *restricted
+    image: ghcr.io/lklynet/aurral:2.13.0@sha256:75dd06805e3daefd49eb4f91d19f4110f0ef6eb1d2b13e48ae36120d113b48f0
+    mem_limit: 1200m
+    networks: [recommendations]
+    entrypoint: [/bin/sh, /opt/homelab/aurral-start.sh]
+    environment:
+      AURRAL_DATA_DIR: /config
+      AUTH_USER: homelab-admin
+      NODE_ENV: production
+      LOG_LEVEL: warn
+      XDG_CACHE_HOME: /tmp/cache
+    volumes:
+      - ./runtime/aurral:/config
+      - ./scripts/aurral-start.sh:/opt/homelab/aurral-start.sh:ro
+    secrets: [aurral_admin_password, aurral_api_key]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3001/api/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 60s
+networks:
+  # Required for published ports with Docker Engine 29. The application can
+  # access external music sources; this network is NOT a domain allowlist.
+  entry: {}
+  library: {internal: true}
+  recommendations: {internal: true}
+  history_alice: {internal: true}
+  history_bob: {internal: true}
+  history_carol: {internal: true}
+secrets:
+  credential_key: {file: ./secrets/credential.key}
+  integrations: {file: ./secrets/integrations.json, name: music_integrations}
+  koito_alice_password: {file: ./secrets/koito-alice.password}
+  koito_bob_password: {file: ./secrets/koito-bob.password}
+  koito_carol_password: {file: ./secrets/koito-carol.password}
+  koito_alice_token: {file: ./secrets/koito-alice.token}
+  koito_bob_token: {file: ./secrets/koito-bob.token}
+  koito_carol_token: {file: ./secrets/koito-carol.token}
+  aurral_admin_password: {file: ./secrets/aurral-admin.password}
+  aurral_api_key: {file: ./secrets/aurral.key}

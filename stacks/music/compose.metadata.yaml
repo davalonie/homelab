@@ -1,0 +1,18 @@
+# Optional: metadata queries only through a fixed-domain gateway in our backend.
+# Aurral retains its internal-only network. No extra container, published port,
+# TLS interception or changes to upstream sources.
+services:
+  music:
+    environment:
+      MUSIC_METADATA_PROXY_ENABLED: "true"
+      MUSIC_METADATA_PROXY_KEY_FILE: /run/secrets/metadata_proxy_key
+    secrets: [metadata_proxy_key]
+  aurral:
+    environment:
+      MUSIC_METADATA_PROXY_ENABLED: "true"
+      NODE_USE_ENV_PROXY: "1"
+      NO_PROXY: localhost,127.0.0.1,music,aurral
+    secrets: [metadata_proxy_key, lastfm_api_key]
+secrets:
+  metadata_proxy_key: {file: ./secrets/metadata-proxy.key}
+  lastfm_api_key: {file: ./secrets/lastfm-api.key}

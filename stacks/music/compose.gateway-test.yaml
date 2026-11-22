@@ -1,0 +1,9 @@
+# LAB ONLY: enable the gateway without supplying a Last.fm key to Aurral.
+services:
+  music:
+    environment:
+      MUSIC_METADATA_PROXY_ENABLED: "true"
+      MUSIC_METADATA_PROXY_KEY_FILE: /run/secrets/metadata_proxy_key
+    secrets: [metadata_proxy_key]
+secrets:
+  metadata_proxy_key: {file: ./secrets/metadata-proxy.key}

@@ -1,0 +1,8 @@
+# TEST ONLY: synthetic metadata, no external requests. Never combine with production.
+services:
+  aurral:
+    environment:
+      NODE_OPTIONS: --import /opt/fixtures/metadata.mjs
+      LASTFM_API_KEY: fictional-metadata-key
+    volumes:
+      - ./tests/fixtures/metadata.mjs:/opt/fixtures/metadata.mjs:ro

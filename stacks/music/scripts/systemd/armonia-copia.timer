@@ -1,0 +1,11 @@
+# Una copia cada noche; si el equipo estaba apagado, al encenderlo.
+[Unit]
+Description=Copia nocturna de Armonía
+
+[Timer]
+OnCalendar=*-*-* 04:30
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

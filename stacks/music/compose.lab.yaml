@@ -1,0 +1,25 @@
+# Synthetic audio and loopback HTTP only. Never use this overlay in production.
+services:
+  music:
+    environment:
+      MUSIC_COOKIE_SECURE: "false"
+      MUSIC_ALLOW_HTTP_SOURCES: "true"
+      MUSIC_SOURCES_FILE: /app/fixtures/sources.json
+    volumes:
+      - ./runtime/fixtures/sources.json:/app/fixtures/sources.json:ro
+  fixtures:
+    image: python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+    user: "${MUSIC_UID:-1000}:${MUSIC_GID:-1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [library]
+    environment:
+      FIXTURES_DIR: /fixtures
+    command: [python, /opt/fixtures/range_server.py]
+    volumes:
+      - ./tests/fixtures/range_server.py:/opt/fixtures/range_server.py:ro
+      - ./runtime/fixtures:/fixtures:ro
+    pids_limit: 32
+    mem_limit: 64m
+    logging: {driver: json-file, options: {max-size: 1m, max-file: "1"}}

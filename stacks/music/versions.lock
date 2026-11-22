@@ -1,0 +1,9 @@
+# Versiones de las fuentes e imágenes del stack de música.
+armonia.source=5421f0f4120c9b01625c3d46e5576b32d8d3db07
+armonia.image=armonia:0.7.0
+aurral.source=3f01fa586f363f416f2e40c234a95550b87d74f7
+aurral.image=ghcr.io/lklynet/aurral:2.13.0@sha256:75dd06805e3daefd49eb4f91d19f4110f0ef6eb1d2b13e48ae36120d113b48f0
+koito.source=daae636f8e3b1dd4c67bfa0c07c93ab50ad8e15a
+koito.image=gabehf/koito:v0.3.2@sha256:3011de405ba2a5c56270928c2b0391add8aa3b3ed68363531b3c64b61f238857
+navidrome.image=deluan/navidrome:0.64.2@sha256:38dc2727bfcfd5ede290f8ada114fc90368146f265ae4701ddddbcbe2a44ee52
+navidrome.source=101145742f4762164202cb4858c9126258bdc463

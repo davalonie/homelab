@@ -1,0 +1,9 @@
+# Acceso desde el móvil por el origen HTTPS privado de la instalación.
+services:
+  music:
+    environment:
+      MUSIC_COOKIE_SECURE: "true"
+      MUSIC_YOUTUBE_CAPABILITIES: "stream,offline,persist"
+      MUSIC_PUBLIC_ORIGIN: ${MUSIC_PUBLIC_ORIGIN:-}
+      MUSIC_SOURCES_FILE: /app/config/sources.json
+      MUSIC_DISCOVERY_QUARANTINE_FILE: ${MUSIC_DISCOVERY_QUARANTINE_FILE:-}

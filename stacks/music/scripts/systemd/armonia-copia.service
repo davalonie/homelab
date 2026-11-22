@@ -1,0 +1,13 @@
+# Copia programada de Armonía. Plantilla: no se instala ni se activa sola.
+# Lee el destino de ~/.config/armonia-copia.env (ver docs/MANTENIMIENTO.md).
+[Unit]
+Description=Copia programada de Armonía (estado cifrado y espejo de la música)
+
+[Service]
+Type=oneshot
+EnvironmentFile=%h/.config/armonia-copia.env
+ExecStart=/bin/sh -c 'exec "$$ARMONIA_PYTHON" "$$ARMONIA_INFRA/scripts/scheduled_backup.py" run --dest "$$ARMONIA_DEST" --keep "$${ARMONIA_KEEP:-14}" $${ARMONIA_FIRMA:+--extra "$$ARMONIA_FIRMA"}'
+# 75 = otra copia o un despliegue en curso; no es un fallo, se repite al día siguiente.
+SuccessExitStatus=75
+Nice=10
+IOSchedulingClass=idle
