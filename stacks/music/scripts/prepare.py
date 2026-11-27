@@ -6,12 +6,16 @@ import os
 import secrets
 from pathlib import Path
 
+from runtime_path import runtime_dir
+
 root = Path(__file__).resolve().parents[1]
+
+runtime = runtime_dir(root)
 os.umask(0o077)
 for name in ('music-app', 'music', 'navidrome', 'koito-alice', 'koito-bob', 'koito-carol', 'aurral', 'cache'):
-    (root / 'runtime' / name).mkdir(parents=True, exist_ok=True)
+    (runtime / name).mkdir(parents=True, exist_ok=True)
 for name in ('shared', 'alice', 'bob', 'carol'):
-    (root / 'runtime/music' / name).mkdir(parents=True, exist_ok=True)
+    (runtime / 'music' / name).mkdir(parents=True, exist_ok=True)
 (root / 'secrets').mkdir(exist_ok=True, mode=0o700)
 values = {'credential.key': base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),
           'backup.key': base64.urlsafe_b64encode(secrets.token_bytes(32)).decode(),

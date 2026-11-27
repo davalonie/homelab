@@ -37,8 +37,10 @@ from pathlib import Path
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
+from runtime_path import runtime_dir
+
 MAGIC = b"MUSIC-HOMELAB-1\n"  # backup.py's format: MAGIC + nonce + AES-256-GCM(tar.gz) + tag
-INCLUDED = ("runtime", "secrets", "config", "tests/fixtures", "scripts", "compose.yaml", "compose.lab.yaml",
+INCLUDED = ("runtime", "secrets", "config", "tests/fixtures", "scripts", "compose.yaml", "compose.dev.yaml", "compose.lab.yaml",
             "compose.phone.local.yaml", "compose.metadata-test.yaml", "compose.gateway-test.yaml",
             "compose.metadata.yaml", ".env", "versions.lock")
 # Never in the state archive: the music has its own mirror, caches are rebuilt.
@@ -96,7 +98,7 @@ def is_sqlite(path):
 def snapshot(database, folder):
     """A consistent copy of a live database, taken through SQLite itself and then checked."""
     target = Path(folder) / hashlib.sha256(str(database).encode()).hexdigest()
-    source = sqlite3.connect(f"file:{database}?mode=ro", uri=True, timeout=30)
+    source = sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=30)
     try:
         copy = sqlite3.connect(target)
         try:
@@ -111,14 +113,14 @@ def snapshot(database, folder):
     return target
 
 
-def state_files(root, key_path):
+def state_files(root, runtime, key_path):
     """Every file of the state archive as (path, name inside the archive)."""
     for name in INCLUDED:
-        source = root / name
+        source = runtime if name == "runtime" else root / name
         if not source.exists():
             continue
         for item in ([source] + sorted(source.rglob("*")) if source.is_dir() else [source]):
-            rel = item.relative_to(root)
+            rel = Path(name) / item.relative_to(source)
             if any(rel.parts[:len(skip)] == skip for skip in SKIPPED_DIRS) or item == key_path:
                 continue
             if "__pycache__" in rel.parts or item.name.endswith(("-wal", "-shm", "-journal")):
@@ -129,7 +131,7 @@ def state_files(root, key_path):
                 yield item, str(rel)
 
 
-def write_state(root, key, key_path, archive, extras):
+def write_state(root, runtime, key, key_path, archive, extras):
     databases = 0
     archive.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".copia-", dir=archive.parent) as staging:
@@ -144,13 +146,15 @@ def write_state(root, key, key_path, archive, extras):
                 info = tarfile.TarInfo("backup-manifest.json")
                 info.size, info.mode = len(manifest), 0o600
                 tar.addfile(info, io.BytesIO(manifest))
-                for item, name in state_files(root, key_path):
+                for item, name in state_files(root, runtime, key_path):
                     if is_sqlite(item):
                         tar.add(snapshot(item, staging), arcname=name, recursive=False)
                         databases += 1
                     else:
                         tar.add(item, arcname=name, recursive=False)
                 for extra in extras:
+                    if extra in (key_path, root / "secrets/backup.key"):
+                        raise Refused("la clave de copia debe guardarse aparte")
                     if not extra.is_file() or extra.is_symlink():
                         raise Refused(f"--extra debe ser un archivo normal: {extra.name}")
                     tar.add(extra, arcname=f"extras/{extra.name}", recursive=False)
@@ -247,15 +251,18 @@ def run(root, dest, key_path, keep=14, extras=(), allow_same_disk=False, now=Non
     key = read_key(key_path)
     if not dest.is_dir():
         raise Refused("el destino no existe o no está montado")
-    if dest == root or root in dest.parents:
+    runtime = runtime_dir(root)
+    if not (runtime / "music").is_dir():
+        raise Refused("falta runtime/music; verifica el montaje de datos")
+    if dest.is_relative_to(root) or dest.is_relative_to(runtime) or runtime.is_relative_to(dest):
         raise Refused("el destino no puede estar dentro de la instalación")
-    if os.stat(dest).st_dev == os.stat(root).st_dev and not allow_same_disk:
+    if dest.stat().st_dev in (root.stat().st_dev, runtime.stat().st_dev) and not allow_same_disk:
         raise Refused("el destino está en el mismo disco que la instalación: no protege de un fallo del disco")
     stamp = (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
     with installation_lock(root):
-        todo, songs, only_in_mirror = pending_music(root / "runtime/music", dest / "musica")
+        todo, songs, only_in_mirror = pending_music(runtime / "music", dest / "musica")
         needed = sum(info.st_size for _, _, info in todo)
-        state_size = sum(item.stat().st_size for item, _ in state_files(root, key_path))
+        state_size = sum(item.stat().st_size for item, _ in state_files(root, runtime, key_path))
         free = shutil.disk_usage(dest).free
         if needed + state_size + 64 * 1024 ** 2 > free:
             raise Refused(f"no hay espacio en el destino: hacen falta {(needed + state_size) // 1024 ** 2} MB "
@@ -263,7 +270,7 @@ def run(root, dest, key_path, keep=14, extras=(), allow_same_disk=False, now=Non
         archive = dest / "estado" / f"armonia-{stamp}.mhb"
         if archive.exists():
             raise Refused("ya existe una copia con esta fecha y hora")
-        databases = write_state(root, key, key_path, archive, [Path(e).resolve() for e in extras])
+        databases = write_state(root, runtime, key, key_path, archive, [Path(e).resolve() for e in extras])
         checked = verify(archive, key)
         copied = copy_music(todo)
         removed = prune(archive.parent, keep)

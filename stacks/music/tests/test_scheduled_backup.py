@@ -21,9 +21,9 @@ spec.loader.exec_module(copia)
 @pytest.fixture
 def lab(tmp_path):
     root, dest = tmp_path / "instalacion", tmp_path / "disco"
-    (root / "runtime/music/ana/Lúa Norte").mkdir(parents=True)
-    (root / "runtime/music/ana/Lúa Norte/Bajamar.m4a").write_bytes(b"audio ficticio 1")
-    (root / "runtime/music/ana/Lúa Norte/Cristal.m4a").write_bytes(b"audio ficticio 22")
+    (root / "runtime/music/user-a/Lúa Norte").mkdir(parents=True)
+    (root / "runtime/music/user-a/Lúa Norte/Bajamar.m4a").write_bytes(b"audio ficticio 1")
+    (root / "runtime/music/user-a/Lúa Norte/Cristal.m4a").write_bytes(b"audio ficticio 22")
     (root / "runtime/cache").mkdir()
     (root / "runtime/cache/portada").write_bytes(b"cache")
     (root / "runtime/navidrome/cache").mkdir(parents=True)
@@ -61,7 +61,7 @@ def test_state_is_restorable_with_the_existing_tool_and_music_is_mirrored(lab, t
     archive = dest / "estado" / report["state"]["archive"]
     assert report["ok"] and report["state"]["databases"] == 1 and report["key_included"] is False
     assert report["music"] == {"files_in_library": 2, "files_copied": 2, "bytes_copied": 33, "only_in_mirror_kept": 0}
-    assert (dest / "musica/ana/Lúa Norte/Bajamar.m4a").read_bytes() == b"audio ficticio 1"
+    assert (dest / "musica/user-a/Lúa Norte/Bajamar.m4a").read_bytes() == b"audio ficticio 1"
     assert json.loads((dest / "ultimo-informe.json").read_text())["state"]["sha256"] == report["state"]["sha256"]
 
     restored = tmp_path / "restaurada"
@@ -80,13 +80,13 @@ def test_state_is_restorable_with_the_existing_tool_and_music_is_mirrored(lab, t
 def test_the_second_run_only_copies_what_changed_and_never_deletes_from_the_mirror(lab):
     root, dest, writer = lab
     make(root, dest, datetime(2026, 11, 17, 3, 0, 0))
-    (root / "runtime/music/ana/Lúa Norte/Bajamar.m4a").unlink()
-    (root / "runtime/music/ana/Lúa Norte/Luz de enero.m4a").write_bytes(b"audio ficticio 333")
+    (root / "runtime/music/user-a/Lúa Norte/Bajamar.m4a").unlink()
+    (root / "runtime/music/user-a/Lúa Norte/Luz de enero.m4a").write_bytes(b"audio ficticio 333")
     writer.execute("INSERT INTO playlists VALUES ('Domingo')")
     writer.commit()
     report = make(root, dest, datetime(2026, 11, 18, 3, 0, 0))
     assert report["music"]["files_copied"] == 1 and report["music"]["only_in_mirror_kept"] == 1
-    assert (dest / "musica/ana/Lúa Norte/Bajamar.m4a").exists(), "a song deleted by mistake survives in the mirror"
+    assert (dest / "musica/user-a/Lúa Norte/Bajamar.m4a").exists(), "a song deleted by mistake survives in the mirror"
     assert len(list((dest / "estado").glob("*.mhb"))) == 2
 
 
@@ -138,3 +138,20 @@ def test_it_waits_its_turn_when_a_deployment_or_another_copy_holds_the_lock(lab,
         code = copia.main(["run", "--root", str(root), "--dest", str(dest), "--allow-same-disk"])
     assert code == copia.BUSY and not (dest / "estado").exists()
     assert copia.main(["run", "--root", str(root), "--dest", str(dest), "--allow-same-disk"]) == 0
+
+
+def test_external_runtime_mirror_and_state(lab, tmp_path, monkeypatch):
+    root, dest, writer = lab
+    writer.close()
+    runtime = tmp_path / "separate disk"
+    (root / "runtime").rename(runtime)
+    monkeypatch.setenv("MUSIC_RUNTIME_DIR", str(runtime))
+    with pytest.raises(copia.Refused, match="dentro"):
+        make(root, runtime)
+    report = make(root, dest)
+    assert report["music"]["files_copied"] == 2
+    assert report["state"]["databases"] == 1
+    restored = tmp_path / "clone"
+    restore(root, dest / "estado" / report["state"]["archive"], restored)
+    assert (restored / "runtime/music-app/music.db").is_file()
+    assert not (restored / "runtime/music").exists()

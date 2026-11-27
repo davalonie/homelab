@@ -1,40 +1,52 @@
 #!/usr/bin/env python3
 """First-install bootstrap for the selected local Compose project. Uses upstream APIs only.
-Requires the prepared, locally built Compose project. Never prints credentials.
+Requires the prepared, running Compose project. Never prints credentials.
 Generated passwords are stored privately; no credentials are printed.
 """
 import argparse
+import fcntl
 import json
 import os
+import re
 import secrets
 import subprocess
+import tempfile
 from pathlib import Path
 
 import httpx
+
+from runtime_path import check_runtime_mount, runtime_dir
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--project', required=True)
 parser.add_argument('--users', nargs='+', required=True, help='One to three new application usernames; stable order')
 parser.add_argument('--docker-config', type=Path)
 args = parser.parse_args()
-import re
 if not 1 <= len(args.users) <= 3 or len(set(args.users)) != len(args.users):
     parser.error('Choose one to three different users')
-if any(not re.fullmatch(r'[a-z][a-z0-9_-]{1,31}', name) or name == 'admin' for name in args.users):
-    parser.error('Usernames must be 2-32 lowercase letters/digits, underscore or hyphen; admin is reserved')
+if any(not re.fullmatch(r'[a-z][a-z0-9_-]{1,31}', name) or name in {'admin', 'homelab-admin'} for name in args.users):
+    parser.error('Usernames must be 2-32 lowercase letters/digits, underscore or hyphen; administrator names are reserved')
 root = Path(__file__).resolve().parents[1]
+runtime = runtime_dir(root)
 os.umask(0o077)
 statefile = root / 'secrets' / 'bootstrap-users.json'
 slots = dict(zip(args.users, ('alice','bob','carol')))
-if statefile.exists():
-    state = json.loads(statefile.read_text())
-    if state.get('_users') != args.users:
-        parser.error('Existing bootstrap has different users/order; refusing to reassign identities')
-else:
-    state = {name: secrets.token_urlsafe(32) for name in ['admin'] + args.users}
+# Keep retries and concurrent provisioning from assigning a slot twice.
+lock = (root / '.backup.lock').open('a')
+fcntl.flock(lock, fcntl.LOCK_EX)
+state = json.loads(statefile.read_text()) if statefile.exists() else {
+    'admin': secrets.token_urlsafe(32), '_users': []
+}
+assigned = state['_users']
+if args.users[:len(assigned)] != assigned:
+    parser.error('Keep existing users in their original order and append new users')
+if assigned != args.users:
+    for name in args.users[len(assigned):]:
+        state[name] = secrets.token_urlsafe(32)
     state['_users'] = args.users
-    with statefile.open('x') as out:
+    with tempfile.NamedTemporaryFile(mode='w', dir=statefile.parent, delete=False) as out:
         json.dump(state, out)
+    os.replace(out.name, statefile)
 
 
 def client(service, port):
@@ -46,6 +58,7 @@ def client(service, port):
     info = json.loads(subprocess.check_output(docker + ['inspect', ids[0]], text=True))[0]
     if Path(info['Config']['Labels']['com.docker.compose.project.working_dir']).resolve() != root:
         raise RuntimeError('Selected project belongs to another directory')
+    check_runtime_mount(info, runtime)
     address = next(n['IPAddress'] for n in info['NetworkSettings']['Networks'].values() if n['IPAddress'])
     headers = {'Host': service} if service.startswith('koito') else {}
     return httpx.Client(base_url=f'http://{address}:{port}', headers=headers, timeout=20, trust_env=False, follow_redirects=False)
@@ -122,4 +135,4 @@ print('Aurral: separate ordinary accounts with flow permission; Koito: separate 
 check(ar.post('/api/auth/logout'))
 ar.close()
 nd.close()
-print('Provisioning complete. Generated credentials remain only in secrets/bootstrap-users.json. Link each Aurral account in the application.')
+print('Provisioning complete. Generated credentials remain only in secrets/bootstrap-users.json. Armonía links the assigned Aurral account at login.')

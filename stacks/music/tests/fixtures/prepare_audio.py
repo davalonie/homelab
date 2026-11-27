@@ -1,7 +1,13 @@
 """Generate two original tones. No third-party music or licensing assumptions."""
 from pathlib import Path
 import json, math, struct, wave
-root = Path(__file__).resolve().parents[2] / "runtime" / "fixtures"
+import sys
+
+stack = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(stack / "scripts"))
+from runtime_path import runtime_dir
+
+root = runtime_dir(stack) / "fixtures"
 root.mkdir(parents=True, exist_ok=True)
 records={}
 for ident,hz,title in [('one',220,'Luz de prueba'),('two',330,'Noche de prueba')]:

@@ -2,9 +2,13 @@
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 from restauracion import STACK, account, open_restore
+
+sys.path.insert(0, str(STACK / "scripts"))
+from runtime_path import runtime_dir
 
 
 def fingerprints(target, url):
@@ -43,7 +47,7 @@ if __name__ == "__main__":
     report = fingerprints(args.target, args.url)
     if args.compare and report != json.loads(args.compare.read_text()):
         raise SystemExit("El contenido de la restauración ha cambiado.")
-    folder = STACK / "runtime/mediciones"
+    folder = runtime_dir(STACK) / "mediciones"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{args.label}.json").write_text(json.dumps(report, indent=2))
     print("Verificadas las huellas de las cuentas, listas, escuchas, música y configuración del clon.")

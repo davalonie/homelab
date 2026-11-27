@@ -9,6 +9,9 @@ import time
 from uuid import uuid4
 
 STACK = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(STACK / "scripts"))
+from runtime_path import runtime_dir
+
 APP = Path(os.environ.get("ARMONIA_REPO", STACK.parents[2] / "armonia"))
 sys.path.insert(0, str(APP / "middleware"))
 
@@ -44,7 +47,7 @@ def measure():
 
 if __name__ == "__main__":
     result = json.dumps(measure(), indent=2)
-    output = STACK / "runtime/mediciones"
+    output = runtime_dir(STACK) / "mediciones"
     output.mkdir(parents=True, exist_ok=True)
     (output / "playlists-bench.json").write_text(result + "\n")
     print(result)

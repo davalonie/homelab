@@ -34,7 +34,9 @@ def project(tmp_path, monkeypatch):
         commands.append(args[1])
         if args[1] == 'ps': return 'fictional-id\n'
         if args[1] == 'inspect':
-            return json.dumps([{'Image':'sha256:fixture','Config':{'Labels':{
+            data = Path(os.environ.get("FIXTURE_MOUNT", os.environ.get("MUSIC_RUNTIME_DIR", root / "runtime")))
+            return json.dumps([{'Image':'sha256:fixture', 'Mounts': [
+                {'Destination': '/app/data', 'Source': str(data / "music-app")}], 'Config':{'Labels':{
                 'com.docker.compose.project.working_dir':str(root),
                 'com.docker.compose.service':'music'}}}])
         assert args[1] in ('start','stop')
@@ -161,3 +163,26 @@ def test_unsafe_lock_file_is_rejected_before_docker(project,tmp_path,kind):
     assert commands==[]
     assert outside.read_bytes()==b'untouched'
     assert not (root/'backups/fixture.mhb').exists()
+
+
+def test_external_runtime_round_trip(project, tmp_path, monkeypatch):
+    root, key, commands, create = project
+    data = tmp_path / 'separate disk'
+    (root / 'runtime').rename(data)
+    monkeypatch.setenv('MUSIC_RUNTIME_DIR', str(data))
+    (root / '.env').write_text(f'MUSIC_RUNTIME_DIR="{data}"\n')
+    with pytest.raises(ValueError):
+        create(data / 'recursive.mhb')
+    assert commands == []
+    dest = tmp_path / 'clone'
+    assert restore(create(), key, dest).returncode == 0
+    assert (dest / 'runtime/music/tone').read_bytes() == b'original fixture'
+    assert (dest / '.env').read_text().splitlines()[-1] == 'MUSIC_RUNTIME_DIR=./runtime'
+
+
+def test_backup_refuses_stale_container_mount(project, monkeypatch, tmp_path):
+    root, key, commands, create = project
+    monkeypatch.setenv("FIXTURE_MOUNT", str(tmp_path / "old-disk"))
+    with pytest.raises(RuntimeError, match="different runtime"):
+        create()
+    assert "stop" not in commands

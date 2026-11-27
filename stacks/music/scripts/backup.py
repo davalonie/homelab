@@ -22,6 +22,8 @@ from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
+from runtime_path import check_runtime_mount, runtime_dir
+
 ROOT=Path(__file__).resolve().parents[1]
 MAGIC=b'MUSIC-HOMELAB-1\n'
 os.umask(0o077)
@@ -74,9 +76,13 @@ def project_backup_lock():
 
 if a.operation=='create':
     signal.signal(signal.SIGTERM, interrupted)
-    included = ('runtime','secrets','config','tests/fixtures','scripts','compose.yaml','compose.lab.yaml',
+    included = ('runtime','secrets','config','tests/fixtures','scripts','compose.yaml','compose.dev.yaml','compose.lab.yaml',
                 'compose.phone.local.yaml','compose.metadata.yaml','compose.metadata-test.yaml','compose.gateway-test.yaml','.env','versions.lock')
-    if any(archive.is_relative_to((ROOT / name).resolve()) for name in included):
+    runtime = runtime_dir(ROOT)
+    if not (runtime / "music").is_dir():
+        raise ValueError("Missing runtime/music; check the data mount")
+    sources = {name: runtime if name == 'runtime' else ROOT / name for name in included}
+    if any(archive.is_relative_to(path.resolve()) for path in sources.values()):
         raise ValueError('Backup destination must be outside the source directories')
     if archive.exists():
         raise FileExistsError('Backup already exists')
@@ -93,6 +99,8 @@ if a.operation=='create':
             containers = json.loads(docker('inspect', *ids))
             if any(Path(c['Config']['Labels']['com.docker.compose.project.working_dir']).resolve() != ROOT for c in containers):
                 raise RuntimeError('Selected project belongs to another directory')
+            for container in containers:
+                check_runtime_mount(container, runtime)
             try:
                 docker('stop', *ids)
                 refs={c['Config']['Labels']['com.docker.compose.service']: c['Image'] for c in containers}
@@ -100,12 +108,11 @@ if a.operation=='create':
                 with tarfile.open(fileobj=EncryptedWriter(out,enc),mode='w|gz', dereference=True) as tar:
                     info=tarfile.TarInfo('backup-manifest.json');info.size=len(manifest);info.mode=0o600
                     tar.addfile(info,io.BytesIO(manifest))
-                    for name in included:
-                        src=ROOT/name
+                    for name, src in sources.items():
                         if not src.exists():continue
                         paths=[src]+sorted(src.rglob('*')) if src.is_dir() else [src]
                         for item in paths:
-                            rel=item.relative_to(ROOT)
+                            rel=Path(name) / item.relative_to(src)
                             if item==a.key.resolve() or rel.parts[:2]==('runtime','cache'):continue
                             if item.is_symlink():raise RuntimeError('Backup refuses symbolic links; use real dedicated music directories.')
                             if not (stat.S_ISREG(item.stat().st_mode) or item.is_dir()):
@@ -150,6 +157,11 @@ else:
                 complete.mkdir(mode=0o700)
                 tar.extractall(complete, filter='data')
                 (complete/'runtime/cache').mkdir(parents=True, exist_ok=True)
+                # Restored projects must never inherit a live absolute data path.
+                env = complete / ".env"
+                if env.exists():
+                    with env.open("a") as out:
+                        out.write("\nMUSIC_RUNTIME_DIR=./runtime\n")
                 # Reserve a new destination; never replace an existing directory.
                 dest.mkdir(mode=0o700)
                 try:

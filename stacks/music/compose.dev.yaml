@@ -1,0 +1,9 @@
+services:
+  music:
+    image: armonia:dev
+    pull_policy: build
+    build:
+      context: ${ARMONIA_BUILD_CONTEXT:-../../../armonia/middleware}
+      args:
+        ARMONIA_COMMIT: ${ARMONIA_COMMIT:-}
+        MUSIC_APP_NAME: ${MUSIC_APP_NAME:-Armonía}

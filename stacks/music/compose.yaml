@@ -34,12 +34,7 @@ x-koito-env: &koito-env
 services:
   music:
     <<: *restricted
-    image: ${MUSIC_IMAGE:-armonia:0.7.0}
-    build:
-      context: ${ARMONIA_BUILD_CONTEXT:-../../../armonia/middleware}
-      args:
-        ARMONIA_COMMIT: ${ARMONIA_COMMIT:-}
-        MUSIC_APP_NAME: ${MUSIC_APP_NAME:-Armonía}
+    image: ${MUSIC_IMAGE:-ghcr.io/davalonie/armonia:0.8.0@sha256:9ba3ad1a5044af4c9f5b1c35e4d115a4c448b83c48a60fb470c7830c303ba5bf}
     ports: ["${MUSIC_BIND:-127.0.0.1}:${MUSIC_PORT:-18400}:8000"]
     networks: [entry, library, recommendations, history_alice, history_bob, history_carol]
     environment:
@@ -52,14 +47,15 @@ services:
       MUSIC_PUBLIC_ORIGIN: ${MUSIC_PUBLIC_ORIGIN:-}
       MUSIC_COOKIE_SECURE: ${MUSIC_COOKIE_SECURE:-true}
       MUSIC_SECRET_KEY_FILE: /run/secrets/credential_key
+      MUSIC_AURRAL_LOGIN_ORIGIN: http://aurral:3001
       MUSIC_INTEGRATIONS_FILE: /run/secrets/integrations.json
       MUSIC_SOURCES_FILE: /app/config/sources.json
       MUSIC_YOUTUBE_CAPABILITIES: ${MUSIC_YOUTUBE_CAPABILITIES:-}
       MUSIC_DELETE_USERS: ""
     volumes:
-      - ./runtime/music-app:/app/data
-      - ./runtime/cache:/app/cache
-      - ./runtime/music:/music
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/music-app:/app/data
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/cache:/app/cache
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/music:/music
       - ./config:/app/config:ro
     secrets:
       - credential_key
@@ -88,8 +84,8 @@ services:
       ND_SEARCH_BACKEND: ${MUSIC_SEARCH_BACKEND:-legacy}
       ND_SCANSCHEDULE: "@every 1h"
     volumes:
-      - ./runtime/navidrome:/data
-      - ./runtime/music:/music:ro
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/navidrome:/data
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/music:/music:ro
     healthcheck:
       test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:4533/ping]
       interval: 30s
@@ -102,7 +98,7 @@ services:
       <<: *koito-env
       KOITO_DEFAULT_USERNAME: alice
       KOITO_ALLOWED_HOSTS: localhost,koito-alice
-    volumes: [./runtime/koito-alice:/etc/koito]
+    volumes: ["${MUSIC_RUNTIME_DIR:-./runtime}/koito-alice:/etc/koito"]
     secrets:
       - source: koito_alice_password
         target: koito_password
@@ -113,7 +109,7 @@ services:
       <<: *koito-env
       KOITO_DEFAULT_USERNAME: bob
       KOITO_ALLOWED_HOSTS: localhost,koito-bob
-    volumes: [./runtime/koito-bob:/etc/koito]
+    volumes: ["${MUSIC_RUNTIME_DIR:-./runtime}/koito-bob:/etc/koito"]
     secrets:
       - source: koito_bob_password
         target: koito_password
@@ -125,7 +121,7 @@ services:
       <<: *koito-env
       KOITO_DEFAULT_USERNAME: carol
       KOITO_ALLOWED_HOSTS: localhost,koito-carol
-    volumes: [./runtime/koito-carol:/etc/koito]
+    volumes: ["${MUSIC_RUNTIME_DIR:-./runtime}/koito-carol:/etc/koito"]
     secrets:
       - source: koito_carol_password
         target: koito_password
@@ -142,7 +138,7 @@ services:
       LOG_LEVEL: warn
       XDG_CACHE_HOME: /tmp/cache
     volumes:
-      - ./runtime/aurral:/config
+      - ${MUSIC_RUNTIME_DIR:-./runtime}/aurral:/config
       - ./scripts/aurral-start.sh:/opt/homelab/aurral-start.sh:ro
     secrets: [aurral_admin_password, aurral_api_key]
     healthcheck:

@@ -22,6 +22,8 @@ def generated(tmp_path_factory):
     root = tmp_path_factory.mktemp("music")
     scripts = root / "tests/fixtures"
     scripts.mkdir(parents=True)
+    (root / "scripts").mkdir()
+    shutil.copy2(FIXTURES.parents[1] / "scripts/runtime_path.py", root / "scripts")
     generator = shutil.copy2(FIXTURES / "prepare_audio.py", scripts)
     subprocess.run([sys.executable, generator], cwd=root, check=True, capture_output=True)
     return root / "runtime/fixtures"

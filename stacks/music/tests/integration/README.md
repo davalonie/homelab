@@ -1,5 +1,7 @@
 # Comprobaciones de integración
 
+Los ejemplos de rutas usan el runtime predeterminado. Con almacenamiento externo, busca los informes en `mediciones/` bajo `MUSIC_RUNTIME_DIR` y ajusta la ruta de `--compare`.
+
 Desde `stacks/music/` utiliza el Python del entorno de Armonía. Para localizar otro clon de la aplicación, define `ARMONIA_REPO` con su ruta.
 
 | Comando | Qué comprueba |

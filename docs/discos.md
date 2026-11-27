@@ -1,5 +1,3 @@
 # Discos
 
-En música, los datos activos residen en `stacks/music/runtime/`. La copia programada comprueba que el destino está en un dispositivo distinto. Consulta el espacio con `df -h` en ambos puntos de montaje antes de una restauración.
-
-Por hacer: documentar el reparto de almacenamiento y el procedimiento de sustitución de discos. Los números de serie y las rutas propias del servidor se guardan en el inventario privado.
+Los montajes, propietarios y capacidades dependen de la instalación. En música puedes empezar en el disco de la VM y trasladar el directorio completo de datos a otro disco. Mantén el destino de las copias en un dispositivo distinto. [Migración y recuperación de música](../stacks/music/docs/MANTENIMIENTO.md)
