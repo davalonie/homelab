@@ -1,0 +1,22 @@
+services:
+  gluetun:
+    labels:
+      homelab.vpnbook.server: ${MEDIA_VPNBOOK_SERVER:-fr231.vpnbook.com}
+    environment:
+      VPN_SERVICE_PROVIDER: custom
+      VPN_TYPE: openvpn
+      OPENVPN_CUSTOM_CONFIG: /vpnbook/profile.ovpn
+      OPENVPN_USER: vpnbook
+      OPENVPN_PASSWORD_SECRETFILE: /vpnbook/password
+      DNS_UPSTREAM_RESOLVER_TYPE: doh
+    # El identificador cambia la configuración de Compose al rotar el perfil.
+    env_file:
+      - path: ./secrets/vpnbook/current/generation.env
+        required: false
+    volumes: !override
+      - type: bind
+        source: ./secrets/vpnbook/current
+        target: /vpnbook
+        read_only: true
+        bind:
+          create_host_path: false

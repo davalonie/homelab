@@ -1,0 +1,8 @@
+[Unit]
+Description=Actualizar la VPN de descargas de Media en %f
+
+[Service]
+Type=oneshot
+WorkingDirectory=%f
+ExecStart=/usr/bin/python3 scripts/vpnbook.py
+UMask=0077
