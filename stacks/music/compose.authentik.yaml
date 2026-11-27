@@ -1,0 +1,29 @@
+# Acceso OIDC a través de Armonía. Authentik se despliega por separado.
+services:
+  music:
+    environment:
+      MUSIC_OIDC_ISSUER: ${MUSIC_OIDC_ISSUER:?Configura el issuer HTTPS de Authentik}
+      MUSIC_OIDC_CLIENT_ID: ${MUSIC_OIDC_CLIENT_ID:?Configura el identificador del cliente}
+      MUSIC_OIDC_SECRET_FILE: /run/secrets/oidc_client_secret
+      MUSIC_OIDC_GROUP: ${MUSIC_OIDC_GROUP:-}
+      MUSIC_ANDROID_APPLICATION_ID: ${MUSIC_ANDROID_APPLICATION_ID:-io.github.davalonie.armonia}
+      MUSIC_PUBLIC_ORIGIN: ${MUSIC_PUBLIC_ORIGIN:?Configura el origen HTTPS de Armonía}
+      MUSIC_COOKIE_SECURE: "true"
+    networks:
+      library:
+        ipv4_address: ${MUSIC_PROXY_IP:?Reserva una IPv4 de library para Armonía}
+    secrets: [oidc_client_secret]
+  navidrome:
+    environment:
+      ND_EXTAUTH_USERHEADER: X-Armonia-User
+      ND_EXTAUTH_TRUSTEDSOURCES: ${MUSIC_PROXY_IP:?Reserva una IPv4 de library para Armonía}/32
+networks:
+  library:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${MUSIC_LIBRARY_SUBNET:?Elige una subred IPv4 libre para library}
+          ip_range: ${MUSIC_LIBRARY_IP_RANGE:?Elige un rango dinámico que excluya MUSIC_PROXY_IP}
+secrets:
+  oidc_client_secret:
+    file: ./secrets/oidc-client-secret

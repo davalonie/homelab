@@ -20,6 +20,10 @@ python scripts/bootstrap.py --project music-homelab --users user-a user-b
 
 Sustituye los nombres de ejemplo durante el aprovisionamiento. Cada posición corresponde a una instancia de Koito con SQLite, red y credenciales propias. Los identificadores internos `alice`, `bob` y `carol` conservan los montajes y las integraciones existentes. Puedes empezar con una cuenta y repetir el comando con otra al final. Para la tercera, define `COMPOSE_PROFILES=third-user`, ejecuta `docker compose up -d --wait` y añade su nombre al final de la lista. El script conserva las contraseñas en `secrets/bootstrap-users.json` y rechaza cambiar el orden de cuentas ya asignadas. Armonía vincula Aurral al iniciar sesión.
 
+## Inicio de sesión con Authentik
+
+Para añadir OIDC a la web y a Android, aprovisiona las cuentas musicales y habilita el overlay opcional. El Compose base sigue utilizando el acceso individual de Navidrome. [Configurar Authentik y vincular cuentas existentes](docs/AUTHENTIK.md)
+
 ## Imagen y desarrollo
 
 Compose usa por defecto la misma referencia por versión y digest de `versions.lock`. Deja `MUSIC_IMAGE` vacío para seguir esa selección. En un despliegue anterior revisa el `.env` local y retira la referencia a la imagen compilada de 0.7.0 cuando estés listo para actualizar. [Paquete de Armonía en GHCR](https://github.com/davalonie/armonia/pkgs/container/armonia)

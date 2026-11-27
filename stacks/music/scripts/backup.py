@@ -76,7 +76,7 @@ def project_backup_lock():
 
 if a.operation=='create':
     signal.signal(signal.SIGTERM, interrupted)
-    included = ('runtime','secrets','config','tests/fixtures','scripts','compose.yaml','compose.dev.yaml','compose.lab.yaml',
+    included = ('runtime','secrets','config','tests/fixtures','scripts','compose.yaml','compose.dev.yaml','compose.authentik.yaml','compose.lab.yaml',
                 'compose.phone.local.yaml','compose.metadata.yaml','compose.metadata-test.yaml','compose.gateway-test.yaml','.env','versions.lock')
     runtime = runtime_dir(ROOT)
     if not (runtime / "music").is_dir():

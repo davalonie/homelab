@@ -50,12 +50,16 @@ def project(tmp_path, monkeypatch):
     return root, key, commands, create
 
 
-def test_hardlinked_music_creates_a_restorable_archive(project, tmp_path):
+def test_full_backup_restores_hardlinked_music_and_oidc_files(project, tmp_path):
     root,key,commands,create=project
     os.link(root/'runtime/music/tone',root/'runtime/music/second')
+    (root/'compose.authentik.yaml').write_text('services: {}')
+    (root/'secrets/oidc-client-secret').write_text('synthetic')
     path=create()
     target=tmp_path/'restored'
     assert restore(path,key,target).returncode==0
+    assert (target/'compose.authentik.yaml').read_text() == 'services: {}'
+    assert (target/'secrets/oidc-client-secret').read_text() == 'synthetic'
     assert (target/'runtime/music/second').read_bytes()==b'original fixture'
     assert not (target/'secrets/backup.key').exists()
     assert not (target/'.backup.lock').exists()

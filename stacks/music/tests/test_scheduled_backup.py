@@ -55,6 +55,8 @@ def restore(root, archive, target):
 
 def test_state_is_restorable_with_the_existing_tool_and_music_is_mirrored(lab, tmp_path):
     root, dest, writer = lab
+    (root / "compose.authentik.yaml").write_text("services: {}")
+    (root / "secrets/oidc-client-secret").write_text("synthetic")
     extra = tmp_path / "firma.jks"
     extra.write_bytes(b"clave de firma ficticia")
     report = make(root, dest, extras=[extra])
@@ -70,6 +72,8 @@ def test_state_is_restorable_with_the_existing_tool_and_music_is_mirrored(lab, t
     rows = sqlite3.connect(restored / "runtime/music-app/music.db").execute("SELECT name FROM playlists").fetchall()
     assert rows == [("Para conducir de noche",)], "the snapshot includes what was still in the write-ahead log"
     assert (restored / "secrets/credential_key").read_text() == "secreto ficticio"
+    assert (restored / "compose.authentik.yaml").read_text() == "services: {}"
+    assert (restored / "secrets/oidc-client-secret").read_text() == "synthetic"
     assert (restored / "extras/firma.jks").read_bytes() == b"clave de firma ficticia"
     assert not (restored / "secrets/backup.key").exists(), "the key never travels with what it protects"
     assert not (restored / "runtime/music").exists() and not (restored / "runtime/navidrome/cache").exists()

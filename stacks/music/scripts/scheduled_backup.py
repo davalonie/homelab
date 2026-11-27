@@ -40,7 +40,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from runtime_path import runtime_dir
 
 MAGIC = b"MUSIC-HOMELAB-1\n"  # backup.py's format: MAGIC + nonce + AES-256-GCM(tar.gz) + tag
-INCLUDED = ("runtime", "secrets", "config", "tests/fixtures", "scripts", "compose.yaml", "compose.dev.yaml", "compose.lab.yaml",
+INCLUDED = ("runtime", "secrets", "config", "tests/fixtures", "scripts", "compose.yaml", "compose.dev.yaml", "compose.authentik.yaml", "compose.lab.yaml",
             "compose.phone.local.yaml", "compose.metadata-test.yaml", "compose.gateway-test.yaml",
             "compose.metadata.yaml", ".env", "versions.lock")
 # Never in the state archive: the music has its own mirror, caches are rebuilt.

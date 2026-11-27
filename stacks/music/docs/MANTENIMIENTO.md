@@ -24,6 +24,12 @@ El destino debe estar montado en otro disco. El estado se conserva cifrado bajo 
 
 Las plantillas de [systemd](../scripts/systemd/) programan la copia a las 04:30, con hasta 15 minutos de margen. Para instalarlas como usuario, copia el servicio y el temporizador a `~/.config/systemd/user/` y la plantilla de entorno a `~/.config/armonia-copia.env`. Ajusta destino, ruta del stack y Python. Si eliges incluir la firma Android, indica su archivo privado en `ARMONIA_FIRMA`; para omitirlo, deja esa variable vacía. Tras revisar los valores, ejecuta `systemctl --user daemon-reload` y `systemctl --user enable --now armonia-copia.timer`.
 
+## Recuperar una instalación con OIDC
+
+La copia completa y el estado cifrado de la programada incluyen `compose.authentik.yaml`, el `.env` local, `secrets/oidc-client-secret`, `secrets/credential.key` y la base `runtime/music-app/armonia.db`. Restaura la base junto con esa clave para conservar los vínculos y poder descifrar las credenciales individuales. Las asignaciones de Aurral y los tokens de Koito se recuperan con el resto de `secrets/`.
+
+Respalda Authentik en su propio LXC. Para recuperar el acceso con los vínculos originales, conserva allí el emisor y los sujetos de los usuarios y revisa el cliente, el secreto vigente y la URI de retorno. Si ensayas en paralelo, configura subredes Docker libres y un cliente y callback de prueba, o arranca el clon con autenticación tradicional. Antes de dar por recuperado OIDC, verifica el acceso de una cuenta vinculada y sus bibliotecas e historial. [Guía de Authentik](AUTHENTIK.md)
+
 ## Trasladar el runtime
 
 1. Comprueba el montaje y el espacio del destino con `findmnt -T` y `df -h`. Usa un directorio nuevo, vacío y dedicado fuera del repositorio. Configura el arranque de la VM para que el disco esté montado antes de iniciar Docker.
