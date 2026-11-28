@@ -12,4 +12,4 @@ El mapa de la raíz describe la arquitectura de referencia. Cada fila correspond
 
 Configura el encaminamiento, DNS y TLS antes de habilitar el acceso remoto. Para integrar una aplicación compatible con OpenID Connect, registra en Authentik un cliente y su URI exacta de retorno, configura el emisor y las credenciales privadas en la aplicación y comprueba el acceso con una cuenta de prueba. La integración se habilita de forma independiente en cada aplicación.
 
-Mantén en el inventario privado las asignaciones de red, identificadores de invitados, credenciales y destinos de copia. El repositorio incluye los Compose de música y media. Los demás stacks tienen documentación de planificación.
+Mantén en el inventario privado las asignaciones de red, identificadores de invitados, credenciales y destinos de copia. La VM dispone de Compose para Música, Media, Vaultwarden, Immich y Overleaf CE+. Las guías de cada stack describen sus puertos y datos persistentes.

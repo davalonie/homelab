@@ -1,0 +1,14 @@
+name: vaultwarden
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:1.37.5@sha256:4fe17f415f90087377d37c755e0ea3cf189dcc6794e49cdd2a9adbb4937d9e1f
+    ports:
+      - "${VAULTWARDEN_BIND:-127.0.0.1}:${VAULTWARDEN_PORT:-8222}:80"
+    environment:
+      DOMAIN: ${VAULTWARDEN_URL:-http://localhost:8222}
+      SIGNUPS_ALLOWED: "${VAULTWARDEN_SIGNUPS_ALLOWED:-false}"
+      INVITATIONS_ALLOWED: "false"
+    volumes:
+      - ${VAULTWARDEN_DATA_DIR:-./runtime/data}:/data
+    restart: unless-stopped

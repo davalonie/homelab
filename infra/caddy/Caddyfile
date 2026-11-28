@@ -1,0 +1,58 @@
+*.{$HOMELAB_ZONE} {
+	tls {
+		dns duckdns {env.DUCKDNS_API_TOKEN} {
+			override_domain {$DUCKDNS_OVERRIDE_DOMAIN}
+		}
+		resolvers 1.1.1.1 8.8.8.8
+		propagation_delay 60s
+		propagation_timeout 300s
+	}
+
+	@proxmox host {$PROXMOX_HOST}
+	handle @proxmox {
+		reverse_proxy https://{$PROXMOX_UPSTREAM} {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+
+	@authentik host {$AUTHENTIK_HOST}
+	handle @authentik {
+		reverse_proxy {$AUTHENTIK_UPSTREAM}
+	}
+
+	@armonia host {$MUSIC_HOST}
+	handle @armonia {
+		reverse_proxy {$MUSIC_UPSTREAM}
+	}
+
+	@jellyfin host {$JELLYFIN_HOST}
+	handle @jellyfin {
+		reverse_proxy {$JELLYFIN_UPSTREAM}
+	}
+
+	@seerr host {$SEERR_HOST}
+	handle @seerr {
+		reverse_proxy {$SEERR_UPSTREAM}
+	}
+
+	@vaultwarden host {$VAULTWARDEN_HOST}
+	handle @vaultwarden {
+		reverse_proxy {$VAULTWARDEN_UPSTREAM}
+	}
+
+	@immich host {$IMMICH_HOST}
+	handle @immich {
+		reverse_proxy {$IMMICH_UPSTREAM}
+	}
+
+	@overleaf host {$OVERLEAF_HOST}
+	handle @overleaf {
+		reverse_proxy {$OVERLEAF_UPSTREAM}
+	}
+
+	handle {
+		respond "Servicio no configurado" 404
+	}
+}

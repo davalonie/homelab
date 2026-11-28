@@ -1,0 +1,69 @@
+name: overleaf
+
+services:
+  sharelatex:
+    image: overleafcep/sharelatex:6.3.0-ext-v5.1@sha256:3077cb674adff9155d5f7f3ddbb52c384565adbb1011f610706e7ae3dfd8d962
+    ports:
+      - "${OVERLEAF_BIND:-127.0.0.1}:${OVERLEAF_PORT:-8082}:80"
+    environment:
+      OVERLEAF_APP_NAME: Overleaf CE+
+      OVERLEAF_SITE_URL: ${OVERLEAF_SITE_URL:-http://localhost:8082}
+      OVERLEAF_SECURE_COOKIE:
+      OVERLEAF_ENABLE_REGISTRATION_PAGE: "false"
+      OVERLEAF_INVITE_TOKEN_SECRET: ${OVERLEAF_INVITE_TOKEN_SECRET:?Configura OVERLEAF_INVITE_TOKEN_SECRET en .env}
+      OVERLEAF_MONGO_URL: mongodb://mongo:27017/sharelatex?replicaSet=overleaf
+      OVERLEAF_REDIS_HOST: redis
+      REDIS_HOST: redis
+      V1_HISTORY_URL: http://sharelatex:3100/api
+      EMAIL_CONFIRMATION_DISABLED: "true"
+    volumes:
+      - ${OVERLEAF_DATA_DIR:-./runtime}/overleaf:/var/lib/overleaf
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/status"]
+      start_period: 3m
+      interval: 15s
+      timeout: 10s
+      retries: 8
+    stop_grace_period: 60s
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:8.0@sha256:479e85ced54ffb8a40dade1dcde2da2a9ae858515b9415e9cc54bfb8f0575d01
+    command: ["mongod", "--replSet", "overleaf", "--bind_ip_all"]
+    volumes:
+      - ${OVERLEAF_DATA_DIR:-./runtime}/mongo:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - |
+          const status = db.hello();
+          if (status.isWritablePrimary) quit(0);
+          if (status.isreplicaset && !status.setName) {
+            rs.initiate({_id: "overleaf", members: [{_id: 0, host: "mongo:27017"}]});
+          }
+          quit(1);
+      interval: 10s
+      timeout: 10s
+      start_period: 30s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4@sha256:6b645a37f49b0546582468706b32e71a8b7fbb5ba4583d0f9e27a8004716b738
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ${OVERLEAF_DATA_DIR:-./runtime}/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -qx PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped

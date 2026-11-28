@@ -10,11 +10,11 @@ Los clientes consultan el DNS privado y llegan por Tailscale a Caddy, que termin
 | --- | --- |
 | [Música](stacks/music/README.md) | Compose, pruebas, copias y preparación de Armonía, Navidrome, Aurral y Koito. |
 | [Media](stacks/media/README.md) | Compose para peticiones con Seerr, descargas por VPN, subtítulos y reproducción en Jellyfin. |
-| [Immich](stacks/immich/README.md) | Plan de fototeca. |
-| [Vaultwarden](stacks/vaultwarden/README.md) | Plan del gestor de contraseñas. |
-| [Overleaf](stacks/overleaf/README.md) | Plan del editor LaTeX. |
+| [Immich](stacks/immich/README.md) | Fototeca, aprendizaje automático y almacenamiento de originales. |
+| [Vaultwarden](stacks/vaultwarden/README.md) | Gestor de contraseñas con SQLite y registro privado. |
+| [Overleaf CE+](stacks/overleaf/README.md) | Editor LaTeX colaborativo con MongoDB y Redis. |
 | [Gestión](stacks/gestion/README.md) | Plan de administración, monitorización y almacenamiento compartido. |
 
-Música y Media incluyen configuraciones ejecutables. Los demás directorios documentan el alcance previsto. El stack de Música descarga la imagen publicada de Armonía en GHCR. La guía explica el aprovisionamiento y los metadatos opcionales de Last.fm. [Preparación de música y Last.fm](stacks/music/README.md#lastfm)
+Cada stack de aplicaciones incluye su Compose y una guía de arranque. Gestión sigue en planificación. El stack de Música descarga la imagen publicada de Armonía en GHCR. La guía explica el aprovisionamiento y los metadatos opcionales de Last.fm. [Preparación de música y Last.fm](stacks/music/README.md#lastfm)
 
 La documentación del servidor se organiza por [Proxmox](docs/proxmox.md), [acceso por Tailscale](docs/tailscale.md), [copias](docs/copias.md) y [discos](docs/discos.md). La configuración de este repositorio se distribuye bajo la [licencia MIT](LICENSE).
